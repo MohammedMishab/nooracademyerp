@@ -4,9 +4,9 @@
     "display": "standalone",
     "scope": "/",
     "start_url": "/",
-    "name": "next-pwa-app",
-    "short_name": "next-pwa",
-    "description": "next-pwa-app",
+    "name": "Noor Academy",
+    "short_name": "Noor Academy",
+    "description": "Noor Academy",
     "icons": [
         {
             "src": "/icon-192x192.png",
