@@ -1,6 +1,5 @@
-import { messaging, getToken, onMessage } from '../firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { messaging, getToken, onMessage, db, auth } from '../firebase';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 
 // VAPID key for Firebase Cloud Messaging
 const VAPID_KEY = 'BAIM2fr_JYQRT4gQsqrQ6MJPfktlnjT3Wi48YK0yLPbvvLt-bX0dAFiNB__8cjQaUEFNJ_veG0E3EZjEgGhBndU';
@@ -41,6 +40,8 @@ export class NotificationService {
           console.log('FCM Token:', this.fcmToken);
           // Store token in localStorage for debugging
           localStorage.setItem('fcmToken', this.fcmToken);
+          // Persist token to Firestore mapped to user for server-side push
+          await this.persistTokenForCurrentUser(this.fcmToken);
         } else {
           console.warn('No FCM token available');
         }
@@ -66,6 +67,28 @@ export class NotificationService {
 
   public getFCMToken(): string | null {
     return this.fcmToken;
+  }
+
+  private async persistTokenForCurrentUser(token: string): Promise<void> {
+    try {
+      const user = auth.currentUser;
+      const userId = user?.uid || 'anonymous';
+      const userEmail = user?.email || null;
+
+      const userTokenDocRef = doc(db, 'userTokens', userId);
+      await setDoc(
+        userTokenDocRef,
+        {
+          userId,
+          email: userEmail,
+          tokens: arrayUnion(token),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Failed to persist FCM token for user:', error);
+    }
   }
 
   public async subscribeToNotifications(): Promise<void> {
@@ -103,7 +126,7 @@ export class NotificationService {
                 tag: `notification-${notificationId}`,
                 data: {
                   id: notificationId,
-                  url: '/notification'
+                  url: `/notification?open=${notificationId}`
                 },
                 requireInteraction: true,
                 silent: false

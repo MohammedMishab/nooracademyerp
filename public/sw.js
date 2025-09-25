@@ -52,6 +52,7 @@ self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
   const urlToOpen = event.notification.data?.url || '/notification';
+  const notifId = event.notification.data?.id;
 
   if (event.action === 'dismiss') {
     // Just close the notification
@@ -74,7 +75,9 @@ self.addEventListener('notificationclick', function(event) {
       
       // If no existing window, open a new one
       if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
+        // Append id as query so app can mark as read
+        const targetUrl = notifId ? `${urlToOpen}` : urlToOpen;
+        return clients.openWindow(targetUrl);
       }
     })
   );

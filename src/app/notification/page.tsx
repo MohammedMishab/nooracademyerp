@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy, doc, updateDoc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
@@ -73,6 +73,29 @@ export default function NotificationsPage() {
 
     return () => unsubscribe();
   }, [router]);
+
+  // Mark as read if opened from notification click with id
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get('open');
+    if (openId) {
+      const markRead = async () => {
+        try {
+          const user = auth.currentUser;
+          if (!user) return;
+          const readRef = doc(db, 'notificationReads', `${user.uid}_${openId}`);
+          await setDoc(readRef, {
+            userId: user.uid,
+            notificationId: openId,
+            readAt: new Date().toISOString()
+          }, { merge: true });
+        } catch (e) {
+          console.warn('Failed to mark notification as read', e);
+        }
+      };
+      markRead();
+    }
+  }, []);
 
   const formatDate = (timestamp: Timestamp) => {
     if (!timestamp?.seconds) return "Date not available";
