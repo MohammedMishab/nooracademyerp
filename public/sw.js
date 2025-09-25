@@ -11,9 +11,34 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', function(event) {
+  console.log('Push event received:', event);
+  
   if (event.data) {
     const data = event.data.json();
-    const promiseChain = self.registration.showNotification(data.title, data.options);
+    console.log('Push data:', data);
+    
+    const options = {
+      body: data.body || 'You have a new notification',
+      icon: data.icon || '/icon-192x192.png',
+      badge: data.badge || '/icon-192x192.png',
+      tag: data.tag || 'notification',
+      data: data.data || {},
+      actions: [
+        {
+          action: 'view',
+          title: 'View',
+          icon: '/icon-192x192.png'
+        },
+        {
+          action: 'dismiss',
+          title: 'Dismiss'
+        }
+      ],
+      requireInteraction: true,
+      silent: false
+    };
+    
+    const promiseChain = self.registration.showNotification(data.title || 'New Notification', options);
     event.waitUntil(promiseChain);
   } else {
     console.log('This push event has no data.');
@@ -21,22 +46,34 @@ self.addEventListener('push', function(event) {
 });
 
 self.addEventListener('notificationclick', function(event) {
-  console.log('On notification click: ', event.notification.tag);
+  console.log('Notification clicked:', event.notification.tag, event.action);
   event.notification.close();
 
-  // This looks to see if the current is already open and
-  // focuses if it is
-  event.waitUntil(clients.matchAll({
-    type: "window"
-  }).then(function(clientList) {
-    for (var i = 0; i < clientList.length; i++) {
-      var client = clientList[i];
-      if (client.url == '/' && 'focus' in client) {
-        return client.focus();
+  const urlToOpen = event.notification.data?.url || '/notification';
+
+  if (event.action === 'dismiss') {
+    // Just close the notification
+    return;
+  }
+
+  // Handle notification click
+  event.waitUntil(
+    clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    }).then(function(clientList) {
+      // Check if there's already a window/tab open with the target URL
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        if (client.url.includes(urlToOpen) && 'focus' in client) {
+          return client.focus();
+        }
       }
-    }
-    if (clients.openWindow) {
-      return clients.openWindow('/');
-    }
-  }));
+      
+      // If no existing window, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });

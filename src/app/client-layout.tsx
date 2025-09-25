@@ -3,30 +3,49 @@
 
 import { useEffect } from 'react';
 import InstallButton from './components/InstallButton';
+import { notificationService } from './services/notificationService';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('scope is: ', registration.scope);
+    const initializeApp = async () => {
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          console.log('Service Worker registered:', registration.scope);
+          
+          // Initialize notification service
+          await notificationService.initialize();
+          
+          // Subscribe to real-time notifications
+          await notificationService.subscribeToNotifications();
+          
+          // Show welcome notification if permission is granted
           if ('Notification' in window && Notification.permission === 'granted') {
-            registration.showNotification('Install our app!', {
-              body: 'Click here to install the app and receive notifications.',
-              icon: '/icon-192x192.png'
+            registration.showNotification('Welcome to Noor Academy!', {
+              body: 'You will now receive notifications for new updates.',
+              icon: '/icon-192x192.png',
+              badge: '/icon-192x192.png',
+              tag: 'welcome'
             });
           }
-        });
-    }
+        } catch (error) {
+          console.error('Service Worker registration failed:', error);
+        }
+      }
 
-    if ('Notification' in window) {
-      Notification.requestPermission().then((permission) => {
+      // Request notification permission
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           console.log('Notification permission granted.');
+        } else {
+          console.log('Notification permission denied.');
         }
-      });
-    }
+      }
+    };
+
+    initializeApp();
   }, []);
 
   return (

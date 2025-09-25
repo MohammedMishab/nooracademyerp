@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAlFbrF26lLfgYliUFq_0VLPpsJJ8coACs",
@@ -16,3 +17,11 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Initialize Firebase Cloud Messaging
+let messaging: any = null;
+if (typeof window !== 'undefined') {
+  messaging = getMessaging(app);
+}
+
+export { messaging, getToken, onMessage };

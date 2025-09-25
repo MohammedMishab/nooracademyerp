@@ -7,6 +7,7 @@ import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy, li
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import NotificationTest from "../components/NotificationTest";
 
 interface Attendance {
   date: Timestamp;
@@ -340,6 +341,11 @@ export default function DashboardPage() {
           <QuickActionButton href="/notification" icon="bell" label="Notifications" color="pink" />
           <QuickActionButton href="/project" icon="folder" label="Project" color="indigo" />
         </div>
+      </div>
+
+      {/* Notification Test Section */}
+      <div className="relative z-10 mx-4 mt-6 mb-8">
+        <NotificationTest />
       </div>
 
       {/* Contact Button */}
