@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const [attendanceStats, setAttendanceStats] = useState({ present: 0, absent: 0, totalDays: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentNotificationIndex, setCurrentNotificationIndex] = useState(0);
+  const [, setCurrentNotificationIndex] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -245,7 +245,7 @@ export default function DashboardPage() {
     );
   }
 
-  const attendancePercentage = calculatePercentage();
+  // const attendancePercentage = calculatePercentage();
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden pt-20">

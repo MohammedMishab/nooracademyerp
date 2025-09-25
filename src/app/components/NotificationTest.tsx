@@ -75,7 +75,7 @@ const NotificationTest = () => {
       <div className="mt-4 p-3 bg-blue-50 rounded-lg">
         <p className="text-xs text-blue-800">
           <strong>Note:</strong> Make sure to allow notifications in your browser. 
-          You'll receive notifications when new announcements are added to the system.
+          You&apos;ll receive notifications when new announcements are added to the system.
         </p>
       </div>
     </div>

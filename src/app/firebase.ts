@@ -19,7 +19,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Initialize Firebase Cloud Messaging
-let messaging: any = null;
+let messaging: ReturnType<typeof getMessaging> | null = null;
 if (typeof window !== 'undefined') {
   messaging = getMessaging(app);
 }
