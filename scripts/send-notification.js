@@ -27,36 +27,6 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// Function to send a test notification
-async function sendTestNotification() {
-  try {
-    // Add a new notification to Firestore
-    const notificationData = {
-      heading: "Test Notification",
-      content: "This is a test notification sent from the backend script. If you see this, your push notification system is working!",
-      date: admin.firestore.FieldValue.serverTimestamp(),
-      type: "test"
-    };
-
-    const docRef = await db.collection('notification').add(notificationData);
-    console.log('Test notification added with ID:', docRef.id);
-    
-    // You can also send FCM messages directly if you have device tokens
-    // const message = {
-    //   notification: {
-    //     title: 'New Notification',
-    //     body: 'You have a new notification from Noor Academy'
-    //   },
-    //   topic: 'notifications' // or use specific device tokens
-    // };
-    
-    // await admin.messaging().send(message);
-    // console.log('FCM message sent successfully');
-    
-  } catch (error) {
-    console.error('Error sending notification:', error);
-  }
-}
 
 // Function to send a real notification
 async function sendRealNotification(heading, content) {
@@ -87,8 +57,8 @@ async function main() {
     const content = args.slice(1).join(' ');
     await sendRealNotification(heading, content);
   } else {
-    // Send test notification
-    await sendTestNotification();
+    console.log('Usage: node send-notification.js "Heading" "Content"');
+    console.log('Example: node send-notification.js "Important Update" "This is a notification message"');
   }
   
   // Close the connection

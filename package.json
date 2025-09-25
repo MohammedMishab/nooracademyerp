@@ -6,8 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint",
-    "send-notification": "node scripts/send-notification.js"
+    "lint": "eslint"
   },
   "dependencies": {
     "chart.js": "^4.5.0",

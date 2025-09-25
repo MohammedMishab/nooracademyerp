@@ -35,7 +35,9 @@ self.addEventListener('push', function(event) {
         }
       ],
       requireInteraction: true,
-      silent: false
+      silent: false,
+      vibrate: [200, 100, 200], // Vibration pattern for mobile
+      timestamp: Date.now()
     };
     
     const promiseChain = self.registration.showNotification(data.title || 'New Notification', options);

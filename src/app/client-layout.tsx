@@ -19,16 +19,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           
           // Subscribe to real-time notifications
           await notificationService.subscribeToNotifications();
-          
-          // Show welcome notification if permission is granted
-          if ('Notification' in window && Notification.permission === 'granted') {
-            registration.showNotification('Welcome to Noor Academy!', {
-              body: 'You will now receive notifications for new updates.',
-              icon: '/icon-192x192.png',
-              badge: '/icon-192x192.png',
-              tag: 'welcome'
-            });
-          }
         } catch (error) {
           console.error('Service Worker registration failed:', error);
         }

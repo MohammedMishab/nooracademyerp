@@ -1,5 +1,5 @@
 import { messaging, getToken, onMessage } from '../firebase';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // VAPID key for Firebase Cloud Messaging
@@ -9,6 +9,7 @@ export class NotificationService {
   private static instance: NotificationService;
   private fcmToken: string | null = null;
   private isInitialized = false;
+  private sentNotifications: Set<string> = new Set();
 
   private constructor() {}
 
@@ -72,28 +73,40 @@ export class NotificationService {
       // Listen for new notifications in real-time
       const notificationsQuery = query(
         collection(db, 'notification'),
-        orderBy('date', 'desc'),
-        limit(1)
+        orderBy('date', 'desc')
       );
 
       onSnapshot(notificationsQuery, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
             const notification = change.doc.data();
+            const notificationId = change.doc.id;
+            
+            // Check if we've already sent this notification
+            if (this.sentNotifications.has(notificationId)) {
+              console.log('Notification already sent:', notificationId);
+              return;
+            }
+            
             console.log('New notification detected:', notification);
             
-            // Show notification
+            // Mark as sent
+            this.sentNotifications.add(notificationId);
+            
+            // Show notification with unique tag to prevent duplicates
             this.showNotification(
               notification.heading || 'New Notification',
               {
                 body: notification.content || 'You have a new notification',
                 icon: '/icon-192x192.png',
                 badge: '/icon-192x192.png',
-                tag: 'notification',
+                tag: `notification-${notificationId}`,
                 data: {
-                  id: change.doc.id,
+                  id: notificationId,
                   url: '/notification'
-                }
+                },
+                requireInteraction: true,
+                silent: false
               }
             );
           }
@@ -114,22 +127,6 @@ export class NotificationService {
     }
   }
 
-  public async sendTestNotification(): Promise<void> {
-    if (this.fcmToken) {
-      try {
-        // This would typically be called from your backend
-        // For now, we'll just show a test notification
-        this.showNotification('Test Notification', {
-          body: 'This is a test notification from Noor Academy',
-          icon: '/icon-192x192.png',
-          badge: '/icon-192x192.png',
-          tag: 'test'
-        });
-      } catch (error) {
-        console.error('Error sending test notification:', error);
-      }
-    }
-  }
 }
 
 export const notificationService = NotificationService.getInstance();
