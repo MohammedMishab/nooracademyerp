@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, query, where, getDocs, DocumentData, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import { useNotificationContext } from "../contexts/NotificationContext";
+import { useAuth } from "../AuthContext";
 
 interface Project {
   id: string;
@@ -22,9 +23,11 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { markAsRead } = useNotificationContext();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const fetchProjects = async () => {
       if (!user) {
         router.push("/");
         return;
@@ -70,16 +73,19 @@ export default function ProjectsPage() {
         setProjects(projectsData);
         console.log("Projects loaded:", projectsData.length);
 
+        // Mark projects as read when page is opened
+        await markAsRead('projects');
+
       } catch (err) {
         console.error("Projects error:", err);
         setError("Failed to load projects");
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, [router]);
+    fetchProjects();
+  }, [user, router, markAsRead]);
 
   const formatDate = (timestamp: Timestamp) => {
     if (!timestamp?.seconds) return "Date not available";
@@ -160,6 +166,11 @@ export default function ProjectsPage() {
             <h1 className="text-3xl font-bold mb-2">My Projects</h1>
             <p className="text-purple-100">View all your submitted projects</p>
           </div>
+          <div className="bg-white/20 p-3 rounded-full">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -171,6 +182,9 @@ export default function ProjectsPage() {
           </p>
           <p className="text-sm text-gray-600 mt-1">
             Roll No: {userData?.rollno || "N/A"} | Batch: {userData?.batch || "N/A"}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Student: {userData?.name || "N/A"}
           </p>
         </div>
       </div>

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import { useNotificationContext } from "../contexts/NotificationContext";
+import { useAuth } from "../AuthContext";
 
 interface Result {
   id: string;
@@ -24,9 +25,11 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { markAsRead } = useNotificationContext();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const fetchResults = async () => {
       if (!user) {
         router.push("/");
         return;
@@ -69,6 +72,9 @@ export default function ResultsPage() {
         setResults(resultsData);
         console.log("Results loaded:", resultsData.length);
 
+        // Mark results as read when page is opened
+        await markAsRead('results');
+
       } catch (err) {
         console.error("Results error:", err);
         
@@ -84,48 +90,11 @@ export default function ResultsPage() {
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, [router]);
+    fetchResults();
+  }, [user, router, markAsRead]);
 
-  // Alternative approach: Create index first, then use optimized query
-  const createIndexAndRetry = async (userRollno: string) => {
-    try {
-      // First, try to create the index by making a simple query
-      // Firestore will automatically prompt for index creation if needed
-      const testQuery = query(
-        collection(db, "result"),
-        where("rollno", "==", userRollno),
-        orderBy("date", "desc")
-      );
-      
-      const testSnap = await getDocs(testQuery);
-      return testSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Result));
-      
-    } catch (err) {
-      const firestoreError = err as { code?: string };
-      if (firestoreError.code === 'failed-precondition') {
-        // If index creation is needed, fall back to client-side filtering
-        const allResultsQuery = query(
-          collection(db, "result"),
-          orderBy("date", "desc")
-        );
-        const allResultsSnap = await getDocs(allResultsQuery);
-        
-        return allResultsSnap.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          } as Result))
-          .filter(result => result.rollno === userRollno);
-      }
-      throw err;
-    }
-  };
 
   const formatDate = (timestamp: Timestamp) => {
     if (!timestamp?.seconds) return "Date not available";
@@ -230,6 +199,9 @@ export default function ResultsPage() {
           </p>
           <p className="text-sm text-gray-600 mt-1">
             Roll No: {userData?.rollno || "N/A"} | Batch: {userData?.batch || "N/A"}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Student: {userData?.name || "N/A"}
           </p>
         </div>
       </div>

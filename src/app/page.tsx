@@ -14,13 +14,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user) {
       router.push("/dashboard");
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

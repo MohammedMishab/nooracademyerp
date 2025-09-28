@@ -2,33 +2,48 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Loading from "./components/Loading";
 
 interface AuthContextProps {
   user: User | null;
+  loading: boolean;
 }
 
-const AuthContext = createContext<AuthContextProps>({ user: null });
+const AuthContext = createContext<AuthContextProps>({
+  user: null,
+  loading: true,
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
-      } else {
-        setUser(null);
-        router.push("/");
-      }
+      setUser(user);
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !user && pathname !== "/") {
+      router.push("/");
+    }
+  }, [loading, user, pathname, router]);
+
+  if (loading) {
+    return <Loading />;
+  }
 
   return (
-    <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading }}>
+      {children}
+    </AuthContext.Provider>
   );
 };
 

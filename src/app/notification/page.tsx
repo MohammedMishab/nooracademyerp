@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy, doc, updateDoc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import { useNotificationContext } from "../contexts/NotificationContext";
+import { useAuth } from "../AuthContext";
 
 interface Notification {
   id: string;
@@ -21,9 +22,11 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { markAsRead } = useNotificationContext();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const fetchNotifications = async () => {
       if (!user) {
         router.push("/");
         return;
@@ -63,16 +66,19 @@ export default function NotificationsPage() {
         setNotifications(notificationsData);
         console.log("Notifications loaded:", notificationsData.length);
 
+        // Mark notifications as read when page is opened
+        await markAsRead('notifications');
+
       } catch (err) {
         console.error("Notifications error:", err);
         setError("Failed to load notifications");
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, [router]);
+    fetchNotifications();
+  }, [user, router, markAsRead]);
 
   // Mark as read if opened from notification click with id
   useEffect(() => {
@@ -194,6 +200,9 @@ export default function NotificationsPage() {
           </p>
           <p className="text-sm text-gray-600 mt-1">
             Roll No: {userData?.rollno || "N/A"} | Batch: {userData?.batch || "N/A"}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Student: {userData?.name || "N/A"}
           </p>
         </div>
       </div>

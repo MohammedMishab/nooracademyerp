@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { User } from "firebase/auth";
+import { useAuth } from "../AuthContext";
 import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy, limit } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import { useNotificationContext } from "../contexts/NotificationContext";
 
 interface Attendance {
   date: Timestamp;
@@ -31,11 +33,12 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [, setCurrentNotificationIndex] = useState(0);
   const router = useRouter();
+  const { counts, markAsRead } = useNotificationContext();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const fetchData = async () => {
       if (!user) {
-        router.push("/");
         return;
       }
 
@@ -65,29 +68,35 @@ export default function DashboardPage() {
         tomorrow.setDate(tomorrow.getDate() + 1);
         
         try {
-          const attendanceQuery = query(
-            collection(db, "attentence"),
-            where("rollno", "==", userData.rollno),
-            where("batch", "==", userData.batch || "1"),
-            where("date", ">=", Timestamp.fromDate(today)),
-            where("date", "<", Timestamp.fromDate(tomorrow)),
-            orderBy("date", "desc"),
-            limit(1)
+          // Use client-side filtering to avoid index requirements
+          const attendanceQuery = query(collection(db, "attentence"));
+          const attendanceSnap = await getDocs(attendanceQuery);
+          
+          const attendanceData = attendanceSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as Attendance));
+          
+          // Filter for today's attendance for this user
+          const todayAttendance = attendanceData.find(record => 
+            record.rollno === userData.rollno && 
+            record.batch === (userData.batch || "1") &&
+            record.date && 
+            record.date.toDate() >= today && 
+            record.date.toDate() < tomorrow
           );
           
-          const attendanceSnap = await getDocs(attendanceQuery);
           console.log("Attendance query results:", {
             rollno: userData.rollno,
             batch: userData.batch || "1",
             today: today.toISOString(),
             tomorrow: tomorrow.toISOString(),
-            found: attendanceSnap.size
+            found: todayAttendance ? 1 : 0
           });
           
-          if (!attendanceSnap.empty) {
-            const attendanceData = attendanceSnap.docs[0].data() as Attendance;
-            console.log("Attendance data found:", attendanceData);
-            setTodayAttendance(attendanceData.status);
+          if (todayAttendance) {
+            console.log("Attendance data found:", todayAttendance);
+            setTodayAttendance(todayAttendance.status);
           } else {
             // If no record found for today, show as present (default behavior)
             console.log("No attendance record found for today, defaulting to present");
@@ -122,19 +131,27 @@ export default function DashboardPage() {
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
           sixMonthsAgo.setHours(0, 0, 0, 0);
           
-          const statsQuery = query(
-            collection(db, "attentence"),
-            where("rollno", "==", userData.rollno),
-            where("batch", "==", userData.batch || "1"),
-            where("date", ">=", Timestamp.fromDate(sixMonthsAgo)),
-            orderBy("date", "desc")
+          // Use client-side filtering to avoid index requirements
+          const statsQuery = query(collection(db, "attentence"));
+          const statsSnap = await getDocs(statsQuery);
+          
+          const statsData = statsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as Attendance));
+          
+          // Filter for user's records in the last 6 months
+          const userStats = statsData.filter(record => 
+            record.rollno === userData.rollno && 
+            record.batch === (userData.batch || "1") &&
+            record.date && 
+            record.date.toDate() >= sixMonthsAgo
           );
           
-          const statsSnap = await getDocs(statsQuery);
-          const absentRecords = statsSnap.docs.filter(doc => doc.data().status === 'absent');
+          const absentRecords = userStats.filter(record => record.status === 'absent');
           const absentCount = absentRecords.length;
 
-          const uniqueDaysWithRecords = new Set(statsSnap.docs.map(doc => doc.data().date.toDate().toDateString()));
+          const uniqueDaysWithRecords = new Set(userStats.map(record => record.date.toDate().toDateString()));
           const totalDays = uniqueDaysWithRecords.size;
           const presentCount = totalDays - absentCount;
           
@@ -160,10 +177,10 @@ export default function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, [router]);
+    fetchData();
+  }, [user]);
 
   useEffect(() => {
     if (notifications.length > 1) {
@@ -176,11 +193,6 @@ export default function DashboardPage() {
       return () => clearInterval(interval);
     }
   }, [notifications]);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push("/");
-  };
 
   const handleWhatsApp = () => {
     window.open(`https://wa.me/919544565248`, '_blank');
@@ -225,12 +237,6 @@ export default function DashboardPage() {
       <div className="flex h-screen items-center justify-center bg-white">
         <div className="text-center">
           <p className="text-lg font-medium text-red-600">{error}</p>
-          <button 
-            onClick={handleLogout}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg"
-          >
-            Go Back
-          </button>
         </div>
       </div>
     );
@@ -333,12 +339,54 @@ export default function DashboardPage() {
       <div className="relative z-10 mx-4 mt-6 mb-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h2>
         <div className="grid grid-cols-3 gap-4">
-          <QuickActionButton href="/attendence" icon="calendar" label="Absens" color="green" />
-          <QuickActionButton href="/result" icon="chart" label="Result" color="blue" />
-          <QuickActionButton href="/achivements" icon="trophy" label="Achievements" color="purple" />
-          <QuickActionButton href="/negatives" icon="warning" label="Negatives" color="yellow" />
-          <QuickActionButton href="/notification" icon="bell" label="Notifications" color="pink" />
-          <QuickActionButton href="/project" icon="folder" label="Project" color="indigo" />
+          <QuickActionButton 
+            href="/attendence" 
+            icon="calendar" 
+            label="Absens" 
+            color="green" 
+            count={counts.attendance}
+            onNavigate={() => markAsRead('attendance')}
+          />
+          <QuickActionButton 
+            href="/result" 
+            icon="chart" 
+            label="Result" 
+            color="blue" 
+            count={counts.results}
+            onNavigate={() => markAsRead('results')}
+          />
+          <QuickActionButton 
+            href="/achivements" 
+            icon="trophy" 
+            label="Achievements" 
+            color="purple" 
+            count={counts.achievements}
+            onNavigate={() => markAsRead('achievements')}
+          />
+          <QuickActionButton 
+            href="/negatives" 
+            icon="warning" 
+            label="Negatives" 
+            color="yellow" 
+            count={counts.negatives}
+            onNavigate={() => markAsRead('negatives')}
+          />
+          <QuickActionButton 
+            href="/notification" 
+            icon="bell" 
+            label="Notifications" 
+            color="pink" 
+            count={counts.notifications}
+            onNavigate={() => markAsRead('notifications')}
+          />
+          <QuickActionButton 
+            href="/project" 
+            icon="folder" 
+            label="Project" 
+            color="indigo" 
+            count={counts.projects}
+            onNavigate={() => markAsRead('projects')}
+          />
         </div>
       </div>
 
@@ -418,9 +466,11 @@ interface QuickActionButtonProps {
   icon: string;
   label: string;
   color: ColorKey;
+  count?: number;
+  onNavigate?: () => void;
 }
 
-const QuickActionButton: React.FC<QuickActionButtonProps> = ({ href, icon, label, color }) => {
+const QuickActionButton: React.FC<QuickActionButtonProps> = ({ href, icon, label, color, count = 0, onNavigate }) => {
   const colors = {
     green: 'bg-green-100 text-green-700',
     blue: 'bg-blue-100 text-blue-700',
@@ -442,12 +492,27 @@ const QuickActionButton: React.FC<QuickActionButtonProps> = ({ href, icon, label
 
   const IconComponent = icons[icon] || FolderIcon;
 
+  const handleClick = () => {
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
+
   return (
-    <Link href={href} className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-xl transition-shadow group">
+    <Link 
+      href={href} 
+      className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-xl transition-shadow group relative"
+      onClick={handleClick}
+    >
       <div className={`w-12 h-12 ${colors[color]} rounded-full flex items-center justify-center mb-2`}>
         <IconComponent className="h-6 w-6" />
       </div>
       <span className="text-sm font-semibold text-gray-700 group-hover:text-purple-700 transition-colors">{label}</span>
+      {count > 0 && (
+        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+          {count > 99 ? '99+' : count}
+        </div>
+      )}
     </Link>
   );
 };

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { useAuth } from "../AuthContext";
 import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import { useNotificationContext } from "../contexts/NotificationContext";
 
 interface Attendance {
   id: string;
@@ -23,9 +24,11 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { markAsRead } = useNotificationContext();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const fetchAttendance = async () => {
       if (!user) {
         router.push("/");
         return;
@@ -68,16 +71,19 @@ export default function AttendancePage() {
         setAttendance(attendanceData);
         console.log("Absent records loaded:", attendanceData.length);
 
+        // Mark attendance as read when page is opened
+        await markAsRead('attendance');
+
       } catch (err) {
         console.error("Attendance error:", err);
         setError("Failed to load attendance records");
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, [router]);
+    fetchAttendance();
+  }, [user, router, markAsRead]);
 
   const formatDate = (timestamp: Timestamp) => {
     if (!timestamp?.seconds) return "Date not available";
@@ -178,6 +184,9 @@ export default function AttendancePage() {
           </p>
           <p className="text-sm text-gray-600 mt-1">
             Roll No: {userData?.rollno || "N/A"} | Batch: {userData?.batch || "N/A"}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Student: {userData?.name || "N/A"}
           </p>
           {lastAbsence && (
             <p className="text-sm text-gray-600 mt-1">

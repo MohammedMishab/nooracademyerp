@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { useAuth } from "../AuthContext";
 import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../navbar/page";
+import { useNotificationContext } from "../contexts/NotificationContext";
 
 interface Achievement {
   id: string;
@@ -22,9 +23,11 @@ export default function AchievementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { markAsRead } = useNotificationContext();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const fetchAchievements = async () => {
       if (!user) {
         router.push("/");
         return;
@@ -74,16 +77,19 @@ export default function AchievementsPage() {
         setAchievements(achievementsData);
         console.log("Achievements loaded:", achievementsData.length);
 
+        // Mark achievements as read when page is opened
+        await markAsRead('achievements');
+
       } catch (err) {
         console.error("Achievements error:", err);
         setError("Failed to load achievements");
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, [router]);
+    fetchAchievements();
+  }, [user, router, markAsRead]);
 
   const formatDate = (timestamp: Timestamp) => {
     if (!timestamp?.seconds) return "Date not available";
@@ -162,7 +168,12 @@ export default function AchievementsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">My Achievements</h1>
-            
+            <p className="text-purple-100">View all your academic achievements</p>
+          </div>
+          <div className="bg-white/20 p-3 rounded-full">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
           </div>
         </div>
       </div>
@@ -173,7 +184,12 @@ export default function AchievementsPage() {
           <p className="text-lg font-semibold text-gray-800">
             Total Achievements: <span className="text-purple-600">{achievements.length}</span>
           </p>
-          
+          <p className="text-sm text-gray-600 mt-1">
+            Roll No: {userData?.rollno || "N/A"} | Batch: {userData?.batch || "N/A"}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Student: {userData?.name || "N/A"}
+          </p>
         </div>
       </div>
 
