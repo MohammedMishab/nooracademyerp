@@ -89,7 +89,7 @@ export default function ResultsPage() {
         // Mark results as read when page is opened
         await markAsRead('results');
 
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Results error:", err);
         
         // Handle index creation error specifically
@@ -149,13 +149,13 @@ export default function ResultsPage() {
     
     // Header with border
     doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text('NOOR ACADEMY EXAM RESULT', 105, 30, { align: 'center' });
     doc.rect(15, 15, 180, 25);
     
     // Student details section
     doc.setFontSize(12);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.text(`Name: ${String(userData?.name || 'N/A')}`, 20, 55);
     doc.text(`Roll No: ${String(userData?.rollno || 'N/A')}`, 20, 65);
     doc.text(`Batch: ${String(userData?.batch || 'N/A')}`, 110, 55);
@@ -169,7 +169,7 @@ export default function ResultsPage() {
     const colPositions = [15, 65, 95, 125, 160];
     
     // Table header
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     const headers = ['Subject', 'Obtained', 'Total', 'Percentage', 'Status'];
     
@@ -180,7 +180,7 @@ export default function ResultsPage() {
     });
     
     // Table data
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     termResults.forEach((result, index) => {
       const y = tableStartY + rowHeight + (index * rowHeight);
