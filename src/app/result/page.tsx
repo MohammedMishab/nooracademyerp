@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "../firebase";
+import { db } from "../firebase";
 import { collection, query, where, getDocs, DocumentData, Timestamp, orderBy } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -136,6 +136,86 @@ export default function ResultsPage() {
     return formatDate(timestamp);
   };
 
+  const downloadPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    
+    const termResults = results.filter(result => result.term === selectedTerm);
+    const fileName = `${userData?.name || 'Student'}_${userData?.rollno || 'N-A'}_${userData?.batch || 'N-A'}_${selectedTerm || 'Term'}_Result.pdf`;
+    
+    // Page border
+    doc.setLineWidth(0.5);
+    doc.rect(10, 10, 190, 277);
+    
+    // Header with border
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('NOOR ACADEMY EXAM RESULT', 105, 30, { align: 'center' });
+    doc.rect(15, 15, 180, 25);
+    
+    // Student details section
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Name: ${String(userData?.name || 'N/A')}`, 20, 55);
+    doc.text(`Roll No: ${String(userData?.rollno || 'N/A')}`, 20, 65);
+    doc.text(`Batch: ${String(userData?.batch || 'N/A')}`, 110, 55);
+    doc.text(`Term: ${String(selectedTerm || 'N/A')}`, 110, 65);
+    doc.rect(15, 45, 180, 30);
+    
+    // Table
+    const tableStartY = 85;
+    const rowHeight = 12;
+    const colWidths = [50, 30, 30, 35, 30];
+    const colPositions = [15, 65, 95, 125, 160];
+    
+    // Table header
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    const headers = ['Subject', 'Obtained', 'Total', 'Percentage', 'Status'];
+    
+    // Draw header row
+    headers.forEach((header, i) => {
+      doc.rect(colPositions[i], tableStartY, colWidths[i], rowHeight);
+      doc.text(String(header), colPositions[i] + 2, tableStartY + 8);
+    });
+    
+    // Table data
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    termResults.forEach((result, index) => {
+      const y = tableStartY + rowHeight + (index * rowHeight);
+      const data = [
+        result.subject || 'Subject',
+        result.obtainedmark,
+        result.maxmark,
+        `${((parseInt(result.obtainedmark) / parseInt(result.maxmark)) * 100).toFixed(1)}%`,
+        result.status.toUpperCase()
+      ];
+      
+      data.forEach((text, i) => {
+        doc.rect(colPositions[i], y, colWidths[i], rowHeight);
+        if (i === 4) { // Status column
+          if (result.status === "pass") {
+            doc.setTextColor(0, 128, 0); // Green
+          } else {
+            doc.setTextColor(255, 0, 0); // Red
+          }
+        } else {
+          doc.setTextColor(0, 0, 0); // Black
+        }
+        doc.text(String(text), colPositions[i] + 2, y + 8);
+      });
+    });
+    
+    // Footer
+    const footerY = 260;
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, footerY);
+    doc.text('Official Result Document', 105, footerY, { align: 'center' });
+    
+    doc.save(fileName);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -209,7 +289,7 @@ export default function ResultsPage() {
       <div className="relative z-10 mx-4 mt-4 p-4 bg-white rounded-2xl shadow-lg border border-gray-100">
         <div className="text-center">
           <p className="text-lg font-semibold text-gray-800">
-            Total Results: <span className="text-green-600">{results.length}</span>
+            Total Terms: <span className="text-green-600">{terms.length}</span>
           </p>
           <p className="text-sm text-gray-600 mt-1">
             Roll No: {userData?.rollno || "N/A"} | Batch: {userData?.batch || "N/A"}
@@ -243,7 +323,7 @@ export default function ResultsPage() {
                   <button
                     key={index}
                     onClick={() => setSelectedTerm(term)}
-                    className="w-full bg-gradient-to-r from-green-600 to-green-400 text-white p-4 rounded-xl shadow-md hover:shadow-xl transition-all transform hover:scale-[1.02] text-left"
+                    className="w-full bg-white text-gray-800 p-4 rounded-xl shadow-md hover:shadow-xl transition-all transform hover:scale-[1.02] text-left border border-gray-200"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-semibold">{term}</span>
@@ -251,7 +331,7 @@ export default function ResultsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
-                    <p className="text-sm text-green-100 mt-1">
+                    <p className="text-sm text-gray-600 mt-1">
                       {results.filter(r => r.term === term).length} subject(s)
                     </p>
                   </button>
@@ -264,15 +344,26 @@ export default function ResultsPage() {
           <div className="space-y-4">
             {/* Back to Terms Button */}
             <div className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100">
-              <button
-                onClick={() => setSelectedTerm(null)}
-                className="flex items-center text-green-600 hover:text-green-700 font-medium"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to Terms
-              </button>
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => setSelectedTerm(null)}
+                  className="flex items-center text-green-600 hover:text-green-700 font-medium"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back to Terms
+                </button>
+                <button
+                  onClick={downloadPDF}
+                  className="flex items-center bg-black text-white px-4 py-2 text-sm font-medium hover:bg-gray-800 border border-black"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download PDF
+                </button>
+              </div>
               <h2 className="text-2xl font-bold text-gray-800 mt-4">{selectedTerm}</h2>
             </div>
 
@@ -283,77 +374,47 @@ export default function ResultsPage() {
                 <p className="text-gray-500">No results found for this term.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {results
-                  .filter(result => result.term === selectedTerm)
-                  .map((result) => (
-                    <div 
-                      key={result.id} 
-                      className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow"
-                    >
-                      {/* Header with Date and Status */}
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
+              <div className="bg-white border border-black overflow-x-auto">
+                <table className="w-full min-w-max border-collapse">
+                  <thead>
+                    <tr className="border-b border-black">
+                      <th className="border-r border-black p-2 md:p-3 text-left font-bold text-black whitespace-nowrap">Subject</th>
+                      <th className="border-r border-black p-2 md:p-3 text-center font-bold text-black whitespace-nowrap">Obtained</th>
+                      <th className="border-r border-black p-2 md:p-3 text-center font-bold text-black whitespace-nowrap">Total</th>
+                      <th className="border-r border-black p-2 md:p-3 text-center font-bold text-black whitespace-nowrap">Percentage</th>
+                      <th className="border-r border-black p-2 md:p-3 text-center font-bold text-black whitespace-nowrap">Status</th>
+                      <th className="p-2 md:p-3 text-center font-bold text-black whitespace-nowrap">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results
+                      .filter(result => result.term === selectedTerm)
+                      .map((result) => (
+                        <tr key={result.id} className="border-b border-black">
+                          <td className="border-r border-black p-2 md:p-3 text-black capitalize whitespace-nowrap">
+                            {result.subject || "Subject"}
+                          </td>
+                          <td className="border-r border-black p-2 md:p-3 text-center text-black whitespace-nowrap">
+                            {result.obtainedmark}
+                          </td>
+                          <td className="border-r border-black p-2 md:p-3 text-center text-black whitespace-nowrap">
+                            {result.maxmark}
+                          </td>
+                          <td className="border-r border-black p-2 md:p-3 text-center text-black whitespace-nowrap">
+                            {((parseInt(result.obtainedmark) / parseInt(result.maxmark)) * 100).toFixed(1)}%
+                          </td>
+                          <td className={`border-r border-black p-2 md:p-3 text-center uppercase whitespace-nowrap ${
+                            result.status === "pass" ? "text-green-600" : "text-red-600"
+                          }`}>
+                            {result.status}
+                          </td>
+                          <td className="p-2 md:p-3 text-center text-black text-sm whitespace-nowrap">
                             {formatDate(result.date)}
-                          </span>
-                          <span className="text-xs text-gray-500 ml-2">
-                            {getTimeAgo(result.date)}
-                          </span>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          result.status === "pass" 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-red-100 text-red-800"
-                        }`}>
-                          {result.status.toUpperCase()}
-                        </span>
-                      </div>
-
-                      {/* Subject */}
-                      <h3 className="text-xl font-bold text-gray-800 mb-4 capitalize">
-                        {result.subject || "Subject"}
-                      </h3>
-
-                      {/* Marks */}
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="bg-gray-50 p-4 rounded-lg text-center">
-                          <p className="text-sm text-gray-600">Obtained Marks</p>
-                          <p className="text-2xl font-bold text-green-600">{result.obtainedmark}</p>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-lg text-center">
-                          <p className="text-sm text-gray-600">Maximum Marks</p>
-                          <p className="text-2xl font-bold text-blue-600">{result.maxmark}</p>
-                        </div>
-                      </div>
-
-                      {/* Percentage */}
-                      <div className="mb-4">
-                        <div className="bg-blue-50 p-3 rounded-lg">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm font-medium text-blue-700">Percentage</span>
-                            <span className="text-sm font-bold text-blue-700">
-                              {((parseInt(result.obtainedmark) / parseInt(result.maxmark)) * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-blue-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${(parseInt(result.obtainedmark) / parseInt(result.maxmark)) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer */}
-                      <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                        <span className="text-xs text-gray-500">
-                          Published on: {formatDate(result.date)}
-                        </span>
-                        <span className="text-xs text-gray-400">ID: {result.id.slice(0, 8)}...</span>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

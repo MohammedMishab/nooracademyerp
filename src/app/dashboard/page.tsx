@@ -75,7 +75,7 @@ export default function DashboardPage() {
           const attendanceData = attendanceSnap.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-          } as Attendance));
+          })) as unknown as Attendance[];
           
           // Filter for today's attendance for this user
           const todayAttendance = attendanceData.find(record => 
@@ -138,7 +138,7 @@ export default function DashboardPage() {
           const statsData = statsSnap.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-          } as Attendance));
+          })) as unknown as Attendance[];
           
           // Filter for user's records in the last 6 months
           const userStats = statsData.filter(record => 

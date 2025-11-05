@@ -18,8 +18,11 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Initialize Firebase Cloud Messaging - only on client side
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let messaging: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let getToken: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let onMessage: any = null;
 
 if (typeof window !== 'undefined') {

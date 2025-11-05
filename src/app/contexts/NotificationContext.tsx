@@ -88,7 +88,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const lastReadRef = doc(db, 'lastReadTimestamps', userId);
       const lastReadSnap = await getDocs(query(collection(db, 'lastReadTimestamps'), where('userId', '==', userId)));
       
-      let lastReadData: any = {};
+      let lastReadData: Record<string, unknown> = {};
       if (!lastReadSnap.empty) {
         lastReadData = lastReadSnap.docs[0].data();
       }
@@ -111,13 +111,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const attendanceData = attendanceSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Array<{ id: string; rollno?: string; status?: string; date?: { toDate: () => Date } }>;
         
         const userAttendance = attendanceData.filter(record => 
           record.rollno === rollno && record.status === "absent"
         );
         
-        if (lastReadData.attendance) {
+        if (lastReadData.attendance && typeof lastReadData.attendance === 'string') {
           const lastReadDate = new Date(lastReadData.attendance);
           newCounts.attendance = userAttendance.filter(record => 
             record.date && record.date.toDate() > lastReadDate
@@ -138,11 +138,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const resultsData = resultsSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Array<{ id: string; rollno?: string; date?: { toDate: () => Date } }>;
         
         const userResults = resultsData.filter(result => result.rollno === rollno);
         
-        if (lastReadData.results) {
+        if (lastReadData.results && typeof lastReadData.results === 'string') {
           const lastReadDate = new Date(lastReadData.results);
           newCounts.results = userResults.filter(result => 
             result.date && result.date.toDate() > lastReadDate
@@ -163,11 +163,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const achievementsData = achievementsSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Array<{ id: string; rollno?: string; date?: { toDate: () => Date } }>;
         
         const userAchievements = achievementsData.filter(achievement => achievement.rollno === rollno);
         
-        if (lastReadData.achievements) {
+        if (lastReadData.achievements && typeof lastReadData.achievements === 'string') {
           const lastReadDate = new Date(lastReadData.achievements);
           newCounts.achievements = userAchievements.filter(achievement => 
             achievement.date && achievement.date.toDate() > lastReadDate
@@ -188,11 +188,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const negativesData = negativesSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Array<{ id: string; rollno?: string; date?: { toDate: () => Date } }>;
         
         const userNegatives = negativesData.filter(negative => negative.rollno === rollno);
         
-        if (lastReadData.negatives) {
+        if (lastReadData.negatives && typeof lastReadData.negatives === 'string') {
           const lastReadDate = new Date(lastReadData.negatives);
           newCounts.negatives = userNegatives.filter(negative => 
             negative.date && negative.date.toDate() > lastReadDate
@@ -213,9 +213,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const notificationsData = notificationsSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Array<{ id: string; date?: { toDate: () => Date } }>;
         
-        if (lastReadData.notifications) {
+        if (lastReadData.notifications && typeof lastReadData.notifications === 'string') {
           const lastReadDate = new Date(lastReadData.notifications);
           newCounts.notifications = notificationsData.filter(notification => 
             notification.date && notification.date.toDate() > lastReadDate
@@ -236,11 +236,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const projectsData = projectsSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Array<{ id: string; rollno?: string; date?: { toDate: () => Date } }>;
         
         const userProjects = projectsData.filter(project => project.rollno === rollno);
         
-        if (lastReadData.projects) {
+        if (lastReadData.projects && typeof lastReadData.projects === 'string') {
           const lastReadDate = new Date(lastReadData.projects);
           newCounts.projects = userProjects.filter(project => 
             project.date && project.date.toDate() > lastReadDate

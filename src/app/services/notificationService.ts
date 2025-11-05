@@ -1,5 +1,5 @@
 import { messaging, getToken, onMessage, db, auth } from '../firebase';
-import { collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 
 // VAPID key for Firebase Cloud Messaging
 const VAPID_KEY = 'BAIM2fr_JYQRT4gQsqrQ6MJPfktlnjT3Wi48YK0yLPbvvLt-bX0dAFiNB__8cjQaUEFNJ_veG0E3EZjEgGhBndU';
@@ -91,7 +91,7 @@ export class NotificationService {
       }
 
       // Listen for foreground messages
-      onMessage(messagingInstance, (payload) => {
+      onMessage(messagingInstance, (payload: { notification?: { title?: string; body?: string }; data?: Record<string, unknown> }) => {
         console.log('Message received in foreground:', payload);
         this.showNotification(payload.notification?.title || 'New Notification', {
           body: payload.notification?.body || 'You have a new notification',
