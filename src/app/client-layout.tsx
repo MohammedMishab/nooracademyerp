@@ -10,17 +10,33 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Register service worker
+        // Register Firebase Messaging service worker first (required for FCM)
+        let serviceWorkerRegistration = null;
         if ('serviceWorker' in navigator) {
           try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
-            console.log('Service Worker registered:', registration.scope);
+            // Register Firebase messaging service worker
+            serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            console.log('Firebase Messaging Service Worker registered:', serviceWorkerRegistration.scope);
+            
+            // Wait for service worker to be ready
+            await navigator.serviceWorker.ready;
+            console.log('Service Worker is ready');
+            
+            // Also register the main service worker for caching
+            try {
+              await navigator.serviceWorker.register('/sw.js');
+              console.log('Main Service Worker registered');
+            } catch (error) {
+              console.warn('Main Service Worker registration failed (non-critical):', error);
+            }
           } catch (error) {
-            console.error('Service Worker registration failed:', error);
+            console.error('Firebase Messaging Service Worker registration failed:', error);
+            // Continue without Firebase messaging if service worker fails
           }
         }
 
         // Initialize notification service (with error handling)
+        // The notification service will handle service worker registration internally
         try {
           await notificationService.initialize();
           

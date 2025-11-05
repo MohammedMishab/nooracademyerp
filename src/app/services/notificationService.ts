@@ -23,6 +23,34 @@ export class NotificationService {
     if (this.isInitialized) return;
 
     try {
+      // Check if service worker is supported
+      if (!('serviceWorker' in navigator)) {
+        console.warn('Service Worker not supported');
+        return;
+      }
+
+      // Ensure Firebase messaging service worker is registered
+      try {
+        // Check if service worker is already registered
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        const fcmSwRegistered = registrations.some(reg => 
+          reg.active?.scriptURL?.includes('firebase-messaging-sw.js')
+        );
+
+        if (!fcmSwRegistered) {
+          // Register Firebase messaging service worker
+          await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          console.log('Firebase Messaging Service Worker registered');
+        }
+
+        // Wait for service worker to be ready
+        await navigator.serviceWorker.ready;
+        console.log('Service Worker ready for messaging');
+      } catch (error) {
+        console.error('Failed to register service worker:', error);
+        return;
+      }
+
       // Request notification permission
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
@@ -30,34 +58,49 @@ export class NotificationService {
         return;
       }
 
-      // Get FCM token
-      if (messaging) {
-        this.fcmToken = await getToken(messaging, {
-          vapidKey: VAPID_KEY
-        });
-
-        if (this.fcmToken) {
-          console.log('FCM Token:', this.fcmToken);
-          // Store token in localStorage for debugging
-          localStorage.setItem('fcmToken', this.fcmToken);
-          // Persist token to Firestore mapped to user for server-side push
-          await this.persistTokenForCurrentUser(this.fcmToken);
-        } else {
-          console.warn('No FCM token available');
-        }
-
-        // Listen for foreground messages
-        onMessage(messaging, (payload) => {
-          console.log('Message received in foreground:', payload);
-          this.showNotification(payload.notification?.title || 'New Notification', {
-            body: payload.notification?.body || 'You have a new notification',
-            icon: '/icon-192x192.png',
-            badge: '/icon-192x192.png',
-            tag: 'notification',
-            data: payload.data
-          });
-        });
+      // Wait for messaging to be initialized (it's loaded asynchronously)
+      let messagingInstance = messaging;
+      let retries = 0;
+      while (!messagingInstance && retries < 10) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        messagingInstance = messaging;
+        retries++;
       }
+
+      if (!messagingInstance) {
+        console.warn('Firebase messaging not initialized yet');
+        return;
+      }
+
+      // Wait a bit more to ensure service worker is fully ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Get FCM token - Firebase will automatically use the registered service worker
+      this.fcmToken = await getToken(messagingInstance, {
+        vapidKey: VAPID_KEY
+      });
+
+      if (this.fcmToken) {
+        console.log('FCM Token:', this.fcmToken);
+        // Store token in localStorage for debugging
+        localStorage.setItem('fcmToken', this.fcmToken);
+        // Persist token to Firestore mapped to user for server-side push
+        await this.persistTokenForCurrentUser(this.fcmToken);
+      } else {
+        console.warn('No FCM token available');
+      }
+
+      // Listen for foreground messages
+      onMessage(messagingInstance, (payload) => {
+        console.log('Message received in foreground:', payload);
+        this.showNotification(payload.notification?.title || 'New Notification', {
+          body: payload.notification?.body || 'You have a new notification',
+          icon: '/icon-192x192.png',
+          badge: '/icon-192x192.png',
+          tag: 'notification',
+          data: payload.data
+        });
+      });
 
       this.isInitialized = true;
     } catch (error) {
